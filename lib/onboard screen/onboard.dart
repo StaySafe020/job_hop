@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../authentication/login_screen.dart';
 
 class OnBoardModel {
   final String title;
@@ -94,17 +95,19 @@ class _OnboardScreenState extends State<OnboardScreen> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: () {
-                          if (currentIndex == onBoardData.length - 1) {
-                            // Navigate to home screen
-                            Navigator.pushReplacementNamed(context, '/home');
-                          } else {
-                            _pageController.nextPage(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeIn,
-                            );
-                          }
-                        },
+                      onPressed: () {
+  if (currentIndex == onBoardData.length - 1) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+    );
+  } else {
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeIn,
+    );
+  }
+},
                         child: Text(
                           currentIndex == onBoardData.length - 1
                               ? "Get Started"
@@ -123,6 +126,8 @@ class _OnboardScreenState extends State<OnboardScreen> {
       ),
     );
   }
+
+
 
   AnimatedContainer buildDot(int index) {
     return AnimatedContainer(
