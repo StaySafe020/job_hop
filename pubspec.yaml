@@ -34,6 +34,8 @@ dependencies:
   google_fonts: ^5.1.0
   font_awesome_flutter: ^9.1.0
   intl: ^0.18.0
+  image_picker: ^1.0.4
+  provider: ^6.1.2
 
 dev_dependencies:
   flutter_test:

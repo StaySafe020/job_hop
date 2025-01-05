@@ -28,17 +28,17 @@ class _OnboardScreenState extends State<OnboardScreen> {
     OnBoardModel(
       title: "Find Your Dream Job",
       description: "Discover thousands of job opportunities with all the information you need.",
-      image: "assets/image/Girl Laptop 1 Standing F1.png",
+      image: ("assets/image/Girl Laptop 1 Standing F1.png"),
     ),
     OnBoardModel(
       title: "Easy Apply",
       description: "Apply to jobs with a single click and track your applications.",
-      image: "assets/image/Work From Home- Girl S.png",
+      image: ("assets/image/Work From Home- Girl S.png"),
     ),
     OnBoardModel(
       title: "Get Hired",
       description: "Connect with employers and start your new career journey.",
-      image: "assets/image/App Browsing MF S2.png",
+      image: ("assets/image/App Browsing MF S2.png"),
     ),
   ];
 

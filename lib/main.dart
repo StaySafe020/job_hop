@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:job_app/notifications/notification_provider.dart';
+import 'package:provider/provider.dart';
 import 'onboard screen/onboard.dart';
 import 'onboard screen/pageview.dart';
 import 'authentication/login_screen.dart';
 import 'authentication/registration_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => NotificationProvider(),
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -31,3 +38,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
