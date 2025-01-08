@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import './notification_model.dart';
-import './services/firebase_service.dart';
+import '../services/firebase_service.dart';
 
 class NotificationScreen extends StatefulWidget {
   @override

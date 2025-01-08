@@ -1,6 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import './notification_model.dart';
+//import './notification_model.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();

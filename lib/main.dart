@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:job_app/notifications/notification_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart'; // Import Firebase Core
+import '../services/connection_service.dart'; // Import your connection service
 import 'onboard screen/onboard.dart';
 import 'onboard screen/pageview.dart';
 import 'authentication/login_screen.dart';
 import 'authentication/registration_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter is initialized
+  await Firebase.initializeApp(); // Initialize Firebase
+
+  // Test Firebase connection
+  ConnectionService connectionService = ConnectionService();
+  await connectionService.checkConnection(); // Call the check method
+  
   runApp(
     ChangeNotifierProvider(
       create: (_) => NotificationProvider(),
@@ -31,11 +40,10 @@ class MyApp extends StatelessWidget {
       initialRoute: '/onboarding',
       routes: {
         '/onboarding': (context) => const OnboardScreen(),
-         '/pageview': (context) => const OnboardingPageView(),
+        '/pageview': (context) => const OnboardingPageView(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegistrationScreen(),
       },
     );
   }
 }
-

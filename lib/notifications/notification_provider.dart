@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import './notification_model.dart';
@@ -32,7 +33,7 @@ class NotificationProvider with ChangeNotifier {
           .listen((snapshot) {
         _notifications = snapshot.docs
             .map((doc) => NotificationModel.fromJson({
-                  ...doc.data() as Map<String, dynamic>,
+                  ...doc.data(),
                   'id': doc.id,
                 }))
             .toList();
