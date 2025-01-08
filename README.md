@@ -22,10 +22,11 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 ### Installation
 
-1. **Clone the repository**:
+**Clone the repository**:
 
-   ```bash
+   ```
    git clone https://github.com/Jambong-Ralpher/job_hop.git
+   ```
 
 
 
