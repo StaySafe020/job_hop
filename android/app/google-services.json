@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "1052618417621",
-    "project_id": "jobhop-53535",
-    "storage_bucket": "jobhop-53535.firebasestorage.app"
+    "project_number": "49815256377",
+    "project_id": "jobhop-2f1e8",
+    "storage_bucket": "jobhop-2f1e8.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1052618417621:android:084ff0dd73858cd9ae095c",
+        "mobilesdk_app_id": "1:49815256377:android:32a81584d79fd6e8c4bce8",
         "android_client_info": {
-          "package_name": "com.school.job_hop"
+          "package_name": "com.example.job_hop"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyClXYb_izbuRRcAOtBAA0jZXBEOlQCJLog"
+          "current_key": "AIzaSyDS3zxh1sWQpWyiI73fB8BgVclpCjm7c-A"
         }
       ],
       "services": {
