@@ -12,7 +12,12 @@
           "package_name": "com.example.job_hop"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "49815256377-ee0modih66fkv1ku2u2moq9q28tijt9g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDS3zxh1sWQpWyiI73fB8BgVclpCjm7c-A"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "49815256377-ee0modih66fkv1ku2u2moq9q28tijt9g.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "49815256377-fuek59tqdq3bjp1odhvsva7ta463ginp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.jobHop"
+              }
+            }
+          ]
         }
       }
     }
