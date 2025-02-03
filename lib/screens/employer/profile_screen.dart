@@ -1,38 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '/models/user_model.dart';
+import '/models/employer_model.dart';
 import '/services/firestore_service.dart';
 
-class ProfileScreen extends StatefulWidget {
+class EmployerProfileScreen extends StatefulWidget {
   @override
-  _ProfileScreenState createState() => _ProfileScreenState();
+  _EmployerProfileScreenState createState() => _EmployerProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _EmployerProfileScreenState extends State<EmployerProfileScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _skillsController = TextEditingController();
-  final _workExperienceController = TextEditingController();
-  final _educationController = TextEditingController();
+  final _companyNameController = TextEditingController();
+  final _industryController = TextEditingController();
+  final _jobPostingsController = TextEditingController();
+  final _companyDescriptionController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _loadEmployerProfile();
   }
 
-  Future<void> _loadUserProfile() async {
+  Future<void> _loadEmployerProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final profile = await _firestoreService.getUserProfile(user.uid);
+      final profile = await _firestoreService.getEmployerProfile(user.uid);
       if (profile != null) {
         setState(() {
-          _nameController.text = profile.name ?? '';
-          _skillsController.text = profile.skills?.join(', ') ?? '';
-          _workExperienceController.text = profile.workExperience ?? '';
-          _educationController.text = profile.education ?? '';
+          _companyNameController.text = profile.companyName ?? '';
+          _industryController.text = profile.industry ?? '';
+          _jobPostingsController.text = profile.jobPostings?.join(', ') ?? '';
+          _companyDescriptionController.text = profile.companyDescription ?? '';
         });
       }
     }
@@ -42,16 +42,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_formKey.currentState!.validate()) {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final profile = UserModel(
+        final profile = EmployerModel(
           uid: user.uid,
           email: user.email!,
-          role: 'job_seeker',
-          name: _nameController.text.trim(),
-          skills: _skillsController.text.trim().split(','),
-          workExperience: _workExperienceController.text.trim(),
-          education: _educationController.text.trim(),
+          role: 'employer',
+          companyName: _companyNameController.text.trim(),
+          industry: _industryController.text.trim(),
+          jobPostings: _jobPostingsController.text.trim().split(','),
+          companyDescription: _companyDescriptionController.text.trim(), createdAt: DateTime.now(),
         );
-        await _firestoreService.saveUserProfile(profile);
+        await _firestoreService.saveEmployerProfile(profile);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Profile saved successfully!')),
         );
@@ -63,8 +63,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Profile', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.blueAccent,
+        title: Text('Employer Profile', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.deepPurple, // Different color for distinction
         iconTheme: IconThemeData(color: Colors.white),
       ),
       body: Padding(
@@ -74,39 +74,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: ListView(
             children: [
               _buildTextFieldWithIcon(
-                controller: _nameController,
-                labelText: 'Name',
-                icon: Icons.person,
+                controller: _companyNameController,
+                labelText: 'Company Name',
+                icon: Icons.business,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter your name';
+                    return 'Please enter your company name';
                   }
                   return null;
                 },
               ),
               SizedBox(height: 20),
               _buildTextFieldWithIcon(
-                controller: _skillsController,
-                labelText: 'Skills (comma-separated)',
-                icon: Icons.work,
+                controller: _industryController,
+                labelText: 'Industry',
+                icon: Icons.work_outline,
               ),
               SizedBox(height: 20),
               _buildTextFieldWithIcon(
-                controller: _workExperienceController,
-                labelText: 'Work Experience',
-                icon: Icons.business_center,
+                controller: _jobPostingsController,
+                labelText: 'Job Postings (comma-separated)',
+                icon: Icons.list_alt,
               ),
               SizedBox(height: 20),
               _buildTextFieldWithIcon(
-                controller: _educationController,
-                labelText: 'Education',
-                icon: Icons.school,
+                controller: _companyDescriptionController,
+                labelText: 'Company Description',
+                icon: Icons.description,
               ),
               SizedBox(height: 30),
               ElevatedButton(
                 onPressed: _saveProfile,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blueAccent,
+                  backgroundColor: Colors.deepPurple, // Matching app bar color
                   padding: EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -134,12 +134,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       controller: controller,
       decoration: InputDecoration(
         labelText: labelText,
-        prefixIcon: Icon(icon, color: Colors.blueAccent),
+        prefixIcon: Icon(icon, color: Colors.deepPurple), // Matching app bar color
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.blueAccent, width: 2),
+          borderSide: BorderSide(color: Colors.deepPurple, width: 2),
           borderRadius: BorderRadius.circular(10),
         ),
       ),
