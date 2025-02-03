@@ -54,4 +54,14 @@ class FirestoreService {
   getEmployerProfile(String uid) {}
 
   saveEmployerProfile(EmployerModel profile) {}
+
+  saveParsedResume(String userId, Map<String, dynamic> resumeData) {}
+
+  Future<void> saveJobApplication(Map<String, dynamic> application) async {
+  await _firestore.collection('applications').doc(application['jobId']).set(application);
+}
+
+  sendMessage({required String senderId, required String receiverId, required String message}) {}
+
+  deleteJobListing(String jobId) {}
 }

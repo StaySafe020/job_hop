@@ -66,6 +66,11 @@ class HomeScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   onTap: () {
                     // Navigate to job details screen
+                    Navigator.pushNamed(
+                      context,
+                      '/job-details',
+                      arguments: job,
+                    );
                   },
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),

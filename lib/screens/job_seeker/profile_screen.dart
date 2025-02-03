@@ -61,6 +61,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Uncomment the line below to use the simple profile screen
+    // return Center(child: Text('Profile Screen'));
+
+    // Use the complex profile screen with the form
     return Scaffold(
       appBar: AppBar(
         title: Text('Profile', style: TextStyle(color: Colors.white)),

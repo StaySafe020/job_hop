@@ -144,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   IconButton(
                     onPressed: _loginWithGoogle,
                     icon: Image.asset(
-                      'assets/images/google_logo.png', // Add Google logo asset
+                      'assets/images/google.png', // Add Google logo asset
                       height: 40,
                     ),
                   ),
@@ -155,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Add Apple login logic here
                     },
                     icon: Image.asset(
-                      'assets/images/apple_logo.png', // Add Apple logo asset
+                      'assets/images/apple.png', // Add Apple logo asset
                       height: 40,
                     ),
                   ),

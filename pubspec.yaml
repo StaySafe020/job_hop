@@ -42,6 +42,7 @@ dependencies:
   firebase_ml_model_downloader: ^0.3.2+1
   http: ^0.13.3
   path_provider: ^2.0.11
+  provider: ^6.1.2
   
 dev_dependencies:
   flutter_test:
