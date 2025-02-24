@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:job_app/presentation/screens/home/home_screen.dart'; // Import to reuse JobDetailsScreen
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -7,9 +8,9 @@ class NotificationScreen extends StatefulWidget {
   State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
-
-
 class _NotificationScreenState extends State<NotificationScreen> {
+  int _selectedIndex = 1; // Default to Notifications (index 1)
+
   // Sample notification data (replace with real data from an API or database)
   List<Map<String, dynamic>> _notifications = [
     {
@@ -25,6 +26,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
       'message': 'A new UI/UX Designer role at Designify matches your profile.',
       'time': '5 hours ago',
       'isRead': true,
+      'jobDetails': {
+        'title': 'UI/UX Designer',
+        'company': 'Designify',
+        'location': 'New York',
+        'description': 'Design user-friendly interfaces for mobile and web platforms.',
+        'requirements': 'Proficiency in Figma, 2+ years experience',
+        'salary': '\$70,000 - \$100,000',
+        'postedBy': 'DesignifyTeam',
+      },
     },
     {
       'id': 3,
@@ -60,21 +70,64 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  // View notification details (placeholder)
+  // View notification details
   void _viewDetails(Map<String, dynamic> notification) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(notification['title']),
-        content: Text(notification['message']),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+    if (notification['title'] == 'New Job Posting' && notification['jobDetails'] != null) {
+      // Navigate to JobDetailsScreen for New Job Posting
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => JobDetailsScreen(job: notification['jobDetails']),
+        ),
+      ).then((_) {
+        // Mark as read after viewing
+        setState(() {
+          notification['isRead'] = true;
+        });
+      });
+    } else {
+      // Show dialog for other notification types
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(notification['title']),
+          content: Text(notification['message']),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ).then((_) {
+        // Mark as read after viewing
+        setState(() {
+          notification['isRead'] = true;
+        });
+      });
+    }
+  }
+
+  // Handle bottom navigation tap
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    switch (index) {
+      case 0:
+        Navigator.pushReplacementNamed(context, '/home');
+        break;
+      case 1:
+        // Already on Notifications
+        break;
+      case 2:
+       Navigator.pushNamed(context, '/messages', arguments: 'User');
+        break;
+      case 3:
+        
+          Navigator.pushReplacementNamed(context, '/settings');
+        break;
+    }
   }
 
   @override
@@ -93,7 +146,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ),
         ),
         actions: [
-          // Mark all as read button
           IconButton(
             icon: const Icon(Icons.done_all, color: Colors.black87),
             onPressed: () {
@@ -179,6 +231,19 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 );
               },
             ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications'),
+          BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messages'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+        ],
+      ),
     );
   }
 
