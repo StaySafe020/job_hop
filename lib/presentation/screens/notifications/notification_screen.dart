@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:job_app/presentation/screens/home/home_screen.dart'; // Import to reuse JobDetailsScreen
+import 'package:job_app/presentation/screens/home/home_screen.dart';
+import 'package:job_app/presentation/screens/home/job_detail_screen.dart'; // Import to reuse JobDetailsScreen
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -10,6 +11,7 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen> {
   int _selectedIndex = 1; // Default to Notifications (index 1)
+  int _unreadCount = 0; // Track unread notifications
 
   // Sample notification data (replace with real data from an API or database)
   List<Map<String, dynamic>> _notifications = [
@@ -52,11 +54,34 @@ class _NotificationScreenState extends State<NotificationScreen> {
     },
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _updateUnreadCount(); // Initialize unread count
+    // TODO: Fetch initial notifications from backend and listen for real-time updates
+    // Example: FirebaseFirestore.instance.collection('notifications').where('userId', isEqualTo: 'currentUser').snapshots().listen((snapshot) {
+    //   setState(() {
+    //     _notifications = snapshot.docs.map((doc) => doc.data()).toList();
+    //     _updateUnreadCount();
+    //   });
+    // });
+  }
+
+  // Update unread notification count
+  void _updateUnreadCount() {
+    setState(() {
+      _unreadCount = _notifications.where((n) => !(n['isRead'] as bool)).length;
+    });
+  }
+
   // Mark a notification as read/unread
   void _toggleReadStatus(int id) {
     setState(() {
       final index = _notifications.indexWhere((n) => n['id'] == id);
       _notifications[index]['isRead'] = !_notifications[index]['isRead'];
+      _updateUnreadCount();
+      // TODO: Update notification status in backend
+      // Example: await FirebaseFirestore.instance.collection('notifications').doc(id.toString()).update({'isRead': _notifications[index]['isRead']});
     });
   }
 
@@ -64,6 +89,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
   void _deleteNotification(int id) {
     setState(() {
       _notifications.removeWhere((n) => n['id'] == id);
+      _updateUnreadCount();
+      // TODO: Delete notification from backend
+      // Example: await FirebaseFirestore.instance.collection('notifications').doc(id.toString()).delete();
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Notification deleted')),
@@ -73,20 +101,20 @@ class _NotificationScreenState extends State<NotificationScreen> {
   // View notification details
   void _viewDetails(Map<String, dynamic> notification) {
     if (notification['title'] == 'New Job Posting' && notification['jobDetails'] != null) {
-      // Navigate to JobDetailsScreen for New Job Posting
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => JobDetailsScreen(job: notification['jobDetails']),
         ),
       ).then((_) {
-        // Mark as read after viewing
         setState(() {
           notification['isRead'] = true;
+          _updateUnreadCount();
+          // TODO: Update notification status in backend
+          // Example: await FirebaseFirestore.instance.collection('notifications').doc(notification['id'].toString()).update({'isRead': true});
         });
       });
     } else {
-      // Show dialog for other notification types
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -100,9 +128,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ],
         ),
       ).then((_) {
-        // Mark as read after viewing
         setState(() {
           notification['isRead'] = true;
+          _updateUnreadCount();
+          // TODO: Update notification status in backend
+          // Example: await FirebaseFirestore.instance.collection('notifications').doc(notification['id'].toString()).update({'isRead': true});
         });
       });
     }
@@ -121,13 +151,27 @@ class _NotificationScreenState extends State<NotificationScreen> {
         // Already on Notifications
         break;
       case 2:
-       Navigator.pushNamed(context, '/messages', arguments: 'User');
+        Navigator.pushNamed(context, '/messages', arguments: 'User');
         break;
       case 3:
-        
-          Navigator.pushReplacementNamed(context, '/settings');
+        Navigator.pushReplacementNamed(context, '/settings');
         break;
     }
+  }
+
+  // Simulate adding a new notification (for testing)
+  void _addNewNotification() {
+    setState(() {
+      _notifications.add({
+        'id': _notifications.length + 1,
+        'title': 'New Message',
+        'message': 'You have a new message from an employer.',
+        'time': 'Just now',
+        'isRead': false,
+      });
+      _updateUnreadCount();
+    });
+    // TODO: This would typically be triggered by a backend push event
   }
 
   @override
@@ -153,11 +197,23 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 for (var noti in _notifications) {
                   noti['isRead'] = true;
                 }
+                _updateUnreadCount();
+                // TODO: Update all notifications as read in backend
+                // Example: await FirebaseFirestore.instance.collection('notifications').where('userId', isEqualTo: 'currentUser').get().then((snapshot) {
+                //   for (var doc in snapshot.docs) {
+                //     doc.reference.update({'isRead': true});
+                //   }
+                // });
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('All notifications marked as read')),
               );
             },
+          ),
+          // Temporary button to test adding a new notification
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.black87),
+            onPressed: _addNewNotification,
           ),
         ],
       ),
@@ -237,11 +293,43 @@ class _NotificationScreenState extends State<NotificationScreen> {
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications'),
-          BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messages'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications),
+                if (_unreadCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '$_unreadCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            label: 'Notifications',
+          ),
+          const BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messages'),
+          const BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),
     );

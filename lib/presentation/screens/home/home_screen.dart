@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:job_app/presentation/screens/home/job_detail_screen.dart';
+import 'package:job_app/presentation/screens/profiles/profile_viewer_screen.dart';
+import 'package:job_app/presentation/screens/profiles/employer_profile_screen.dart'; // New import
 
 class HomeScreen extends StatefulWidget {
   final String username; // Pass the username from login/registration
@@ -11,8 +14,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0; // Track the selected bottom navigation item
+  bool _isEmployer = false; // User role (fetch from backend)
+  bool _isVerified = false; // Employer verification status (fetch from backend)
+  bool _allowEmployerView = false; // Opt-in for profile visibility (fetch from backend)
+  bool _showSkills = true; // Granularity: Show skills (fetch from backend)
+  bool _showAppliedJobs = false; // Granularity: Show applied jobs (fetch from backend)
+  bool _showRecommendations = false; // Granularity: Show recommendation letters (fetch from backend)
 
-  // Sample job data (replace with real data from an API or database later)
+  // Sample job data (replace with real data from an API or database)
   final List<Map<String, String>> _jobs = [
     {
       'title': 'Software Engineer',
@@ -21,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'description': 'Develop and maintain scalable web applications using Flutter and Dart.',
       'requirements': '3+ years experience, Flutter, Dart, REST APIs',
       'salary': '\$80,000 - \$120,000',
-      'postedBy': 'TechCorpHR', // Example employer username
+      'postedBy': 'TechCorpHR',
     },
     {
       'title': 'UI/UX Designer',
@@ -61,6 +70,57 @@ class _HomeScreenState extends State<HomeScreen> {
     },
   ];
 
+  // Sample recommended jobs for carousel (with 'featured' flag for employer mode enhancement)
+  final List<Map<String, String>> _recommendedJobs = [
+    {
+      'title': 'Senior Developer',
+      'company': 'CloudNet',
+      'location': 'Remote',
+      'description': 'Lead development of cloud-based solutions.',
+      'requirements': '5+ years experience, AWS, Node.js',
+      'salary': '\$100,000 - \$140,000',
+      'postedBy': 'CloudNetAdmin',
+      'featured': 'true', // Priority for verified employers
+    },
+    {
+      'title': 'Graphic Designer',
+      'company': 'CreativeCo',
+      'location': 'London',
+      'description': 'Create stunning visuals for digital campaigns.',
+      'requirements': 'Adobe Suite, 3+ years experience',
+      'salary': '\$65,000 - \$95,000',
+      'postedBy': 'CreativeCoHR',
+      'featured': 'false',
+    },
+  ];
+
+  // Sample career tip
+  final String _careerTip = 'Tailor your resume for each job to stand out!';
+
+  @override
+  void initState() {
+    super.initState();
+    // TODO: Fetch user role, verification status, and profile visibility settings from backend
+    // Example: FirebaseFirestore.instance.collection('users').doc(widget.username).get().then((doc) {
+    //   _isEmployer = doc['isEmployer'] ?? false;
+    //   _isVerified = doc['isVerified'] ?? false;
+    //   _allowEmployerView = doc['allowEmployerView'] ?? false;
+    //   _showSkills = doc['showSkills'] ?? true;
+    //   _showAppliedJobs = doc['showAppliedJobs'] ?? false;
+    //   _showRecommendations = doc['showRecommendations'] ?? false;
+    //   _jobs = await fetchJobs();
+    //   _recommendedJobs = await fetchRecommendedJobs(widget.username);
+    // });
+  }
+
+  // Get time-based greeting
+  String _getTimeBasedGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning, ${widget.username}!';
+    if (hour < 17) return 'Good Afternoon, ${widget.username}!';
+    return 'Good Evening, ${widget.username}!';
+  }
+
   // Handle bottom navigation tap
   void _onItemTapped(int index) {
     setState(() {
@@ -74,11 +134,10 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.pushNamed(context, '/notifications');
         break;
       case 2:
-         Navigator.pushNamed(context, '/messages', arguments: widget.username);
+        Navigator.pushNamed(context, '/messages', arguments: widget.username);
         break;
       case 3:
-          Navigator.pushNamed(context, '/settings', arguments: widget.username);
-       
+        Navigator.pushNamed(context, '/settings', arguments: widget.username);
         break;
     }
   }
@@ -87,87 +146,290 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showJobDetails(BuildContext context, Map<String, String> job) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => JobDetailsScreen(job: job),
-      ),
+      MaterialPageRoute(builder: (context) => JobDetailsScreen(job: job)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100], // Light background
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Row(
-          children: [
-            GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, '/profile', arguments: widget.username); // Navigate to profile
-              },
-              child: const CircleAvatar(
-                radius: 20,
-                backgroundColor: Colors.blue,
-                child: Icon(Icons.person, color: Colors.white),
+      backgroundColor: Colors.grey[100],
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 180.0,
+            floating: false,
+            pinned: true,
+            automaticallyImplyLeading: false, // Remove the back arrow
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue, Colors.green],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pushNamed(context, '/profile', arguments: widget.username);
+                            },
+                            child: const CircleAvatar(
+                              radius: 20,
+                              backgroundColor: Colors.white,
+                              child: Icon(Icons.person, color: Colors.blue),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _getTimeBasedGreeting(),
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Explore New Opportunities Today!',
+                        style: TextStyle(fontSize: 16, color: Colors.white70),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Jobs Viewed: 3 | Applications: 2',
+                        style: const TextStyle(fontSize: 14, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            const SizedBox(width: 10),
-            Text(
-              'Hi, ${widget.username}',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.search, color: Colors.white),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Search Coming Soon!')),
+                  );
+                },
               ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.black87),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Search Coming Soon!')),
-              );
-            },
+            ],
           ),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'Available Posted Jobs',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Recommended Jobs Carousel
+                  const Text(
+                    'Recommended for You',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _recommendedJobs.length,
+                      itemBuilder: (context, index) {
+                        final job = _recommendedJobs[index];
+                        return GestureDetector(
+                          onTap: () => _showJobDetails(context, job),
+                          child: Container(
+                            width: 200,
+                            margin: const EdgeInsets.only(right: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.2),
+                                  blurRadius: 5,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    job['title']! + (job['featured'] == 'true' ? ' (Featured)' : ''),
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(job['company']!),
+                                  Text(job['location']!, style: const TextStyle(color: Colors.grey)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Quick Actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildQuickAction('Search Jobs', Icons.search, () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Search Coming Soon!')),
+                        );
+                      }),
+                      if (_isEmployer)
+                        _buildQuickAction('Post a Job', Icons.add, () {
+                          Navigator.pushNamed(context, '/profile', arguments: widget.username);
+                        }),
+                      _buildQuickAction('Messages', Icons.message, () {
+                        Navigator.pushNamed(context, '/messages', arguments: widget.username);
+                      }),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Career Tip
+                  Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.lightbulb_outline, color: Colors.green),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Career Tip: $_careerTip',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Profile Snapshot (Job Seekers)
+                  if (!_isEmployer)
+                    Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.person_outline, color: Colors.blue),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Profile Strength: 80%', style: TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                const Text('Complete your profile to stand out!'),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pushNamed(context, '/profile', arguments: widget.username);
+                                  },
+                                  child: const Text('Edit Profile'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Talent Pool (Verified Employers Only)
+                  if (_isEmployer && _isVerified) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Talent Pool',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 100,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: 3, // Sample candidates
+                        itemBuilder: (context, index) {
+                          return Container(
+                            width: 150,
+                            margin: const EdgeInsets.only(right: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.2),
+                                  blurRadius: 5,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Candidate ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  const Text('Skills: Flutter, Dart'),
+                                  const SizedBox(height: 4),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileViewerScreen(userId: 'candidate${index + 1}')));
+                                    },
+                                    child: const Text('View'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+
+                  // Job List
+                  const Text(
+                    'Available Jobs',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
             ),
           ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              itemCount: _jobs.length,
-              itemBuilder: (context, index) {
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
                 final job = _jobs[index];
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 2,
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(16),
                     title: Text(
                       job['title']!,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,6 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               },
+              childCount: _jobs.length,
             ),
           ),
         ],
@@ -201,176 +464,29 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
 
-// Job Details Screen
-class JobDetailsScreen extends StatelessWidget {
-  final Map<String, String> job;
-
-  const JobDetailsScreen({super.key, required this.job});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(job['title']!),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+  // Helper for quick action tiles
+  Widget _buildQuickAction(String title, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 5, spreadRadius: 1),
+          ],
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              job['title']!,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
+            Icon(icon, color: Colors.blue, size: 30),
             const SizedBox(height: 8),
-            Text('Company: ${job['company']}', style: const TextStyle(fontSize: 18)),
-            Text('Location: ${job['location']}', style: const TextStyle(fontSize: 18)),
-            Text('Posted by: ${job['postedBy']}', style: const TextStyle(fontSize: 18)),
-            const SizedBox(height: 16),
-            const Text('Description', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            Text(job['description']!, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 16),
-            const Text('Requirements', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            Text(job['requirements']!, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 16),
-            Text('Salary: ${job['salary']}', style: const TextStyle(fontSize: 16)),
-            const Spacer(),
-            ElevatedButton(
-              onPressed: () {
-                _showApplicationForm(context, job);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Apply', style: TextStyle(fontSize: 18)),
-            ),
+            Text(title, style: const TextStyle(fontSize: 14)),
           ],
         ),
       ),
-    );
-  }
-
-  // Show application form in a dialog
-  void _showApplicationForm(BuildContext context, Map<String, String> job) {
-    showDialog(
-      context: context,
-      builder: (context) => ApplicationFormDialog(job: job),
-    );
-  }
-}
-
-// Application Form Dialog
-class ApplicationFormDialog extends StatefulWidget {
-  final Map<String, String> job;
-
-  const ApplicationFormDialog({super.key, required this.job});
-
-  @override
-  State<ApplicationFormDialog> createState() => _ApplicationFormDialogState();
-}
-
-class _ApplicationFormDialogState extends State<ApplicationFormDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _resumeController = TextEditingController();
-  final _coverLetterController = TextEditingController();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _resumeController.dispose();
-    _coverLetterController.dispose();
-    super.dispose();
-  }
-
-  void _submitApplication() {
-    if (_formKey.currentState!.validate()) {
-      // TODO: Send application data to employer (e.g., API call)
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Application submitted for ${widget.job['title']}')),
-      );
-      Navigator.pop(context); // Close the dialog
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      title: Text('Apply for ${widget.job['title']}'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: _inputDecoration('Full Name'),
-                validator: (value) => value!.isEmpty ? 'Enter your name' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                decoration: _inputDecoration('Email'),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value!.isEmpty) return 'Enter your email';
-                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                    return 'Enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _resumeController,
-                decoration: _inputDecoration('Resume Link (e.g., Google Drive)'),
-                validator: (value) => value!.isEmpty ? 'Provide a resume link' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _coverLetterController,
-                decoration: _inputDecoration('Cover Letter'),
-                maxLines: 3,
-                validator: (value) => value!.isEmpty ? 'Write a cover letter' : null,
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _submitApplication,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-          ),
-          child: const Text('Apply Now'),
-        ),
-      ],
-    );
-  }
-
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      filled: true,
-      fillColor: Colors.grey[200],
     );
   }
 }

@@ -11,6 +11,7 @@ class MessagingScreen extends StatefulWidget {
 
 class _MessagingScreenState extends State<MessagingScreen> {
   int _selectedIndex = 2; // Default to Messages (index 2)
+  int _unreadMessageCount = 0; // Track total unread messages across conversations
 
   // Sample conversation data (replace with real data from database)
   List<Map<String, dynamic>> _conversations = [
@@ -27,6 +28,26 @@ class _MessagingScreenState extends State<MessagingScreen> {
       'unread': 0,
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _updateUnreadMessageCount(); // Initialize unread count
+    // TODO: Fetch initial conversations from backend and listen for real-time updates
+    // Example: FirebaseFirestore.instance.collection('conversations').where('participants', arrayContains: widget.username).snapshots().listen((snapshot) {
+    //   setState(() {
+    //     _conversations = snapshot.docs.map((doc) => doc.data()).toList();
+    //     _updateUnreadMessageCount();
+    //   });
+    // });
+  }
+
+  // Update unread message count
+  void _updateUnreadMessageCount() {
+    setState(() {
+      _unreadMessageCount = _conversations.fold(0, (sum, conv) => sum + (conv['unread'] as int));
+    });
+  }
 
   // Handle bottom navigation tap
   void _onItemTapped(int index) {
@@ -49,7 +70,7 @@ class _MessagingScreenState extends State<MessagingScreen> {
     }
   }
 
-  // Open chat screen
+  // Open chat screen and mark messages as read
   void _openChat(String contact) {
     Navigator.push(
       context,
@@ -59,7 +80,38 @@ class _MessagingScreenState extends State<MessagingScreen> {
           contact: contact,
         ),
       ),
-    );
+    ).then((_) {
+      setState(() {
+        final convIndex = _conversations.indexWhere((c) => c['contact'] == contact);
+        if (convIndex != -1) {
+          _conversations[convIndex]['unread'] = 0; // Mark all messages in this conversation as read
+          _updateUnreadMessageCount();
+          // TODO: Update conversation unread count in backend
+          // Example: await FirebaseFirestore.instance.collection('conversations').doc('${widget.username}_$contact').update({'unread': 0});
+        }
+      });
+    });
+  }
+
+  // Simulate adding a new message (for testing)
+  void _addNewMessage() {
+    setState(() {
+      final existingConvIndex = _conversations.indexWhere((c) => c['contact'] == 'TechCorpHR');
+      if (existingConvIndex != -1) {
+        _conversations[existingConvIndex]['lastMessage'] = 'New message received!';
+        _conversations[existingConvIndex]['time'] = 'Just now';
+        _conversations[existingConvIndex]['unread'] = (_conversations[existingConvIndex]['unread'] as int) + 1;
+      } else {
+        _conversations.add({
+          'contact': 'NewEmployer',
+          'lastMessage': 'Hello, interested in your profile.',
+          'time': 'Just now',
+          'unread': 1,
+        });
+      }
+      _updateUnreadMessageCount();
+    });
+    // TODO: This would typically be triggered by a backend push event
   }
 
   @override
@@ -73,6 +125,13 @@ class _MessagingScreenState extends State<MessagingScreen> {
           'Messages',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
         ),
+        actions: [
+          // Temporary button to test adding a new message
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.black87),
+            onPressed: _addNewMessage,
+          ),
+        ],
       ),
       body: _conversations.isEmpty
           ? const Center(
@@ -134,11 +193,43 @@ class _MessagingScreenState extends State<MessagingScreen> {
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications'),
-          BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messages'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications'),
+          BottomNavigationBarItem(
+            icon: Stack(
+              children: [
+                const Icon(Icons.message),
+                if (_unreadMessageCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '$_unreadMessageCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            label: 'Messages',
+          ),
+          const BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),
     );
@@ -158,7 +249,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
-  
+
   // Sample messages (replace with real data from database)
   List<Map<String, dynamic>> _messages = [
     {'sender': 'TechCorpHR', 'text': 'Hi, we’d like to discuss your application.', 'time': '10:30 AM'},
@@ -188,7 +279,18 @@ class _ChatScreenState extends State<ChatScreen> {
           'time': DateTime.now().toString().substring(11, 16), // HH:MM format
         });
         // TODO: Save message to database and notify recipient
-        // Example: await sendMessage(widget.currentUser, widget.contact, _messageController.text);
+        // Example: await FirebaseFirestore.instance.collection('messages').add({
+        //   'conversationId': '${widget.currentUser}_${widget.contact}',
+        //   'sender': widget.currentUser,
+        //   'text': _messageController.text,
+        //   'timestamp': FieldValue.serverTimestamp(),
+        // });
+        // await FirebaseFirestore.instance.collection('conversations').doc('${widget.currentUser}_${widget.contact}').set({
+        //   'participants': [widget.currentUser, widget.contact],
+        //   'lastMessage': _messageController.text,
+        //   'lastMessageTime': FieldValue.serverTimestamp(),
+        //   'unread': FieldValue.increment(1), // Increment unread for recipient
+        // }, SetOptions(merge: true));
       });
       _messageController.clear();
     }

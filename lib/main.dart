@@ -1,52 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:job_app/presentation/screens/auth/register_screen.dart';
-import 'package:job_app/presentation/screens/onboarding/onboarding_screen.dart';
-import 'package:job_app/presentation/screens/auth/login_screen.dart';
+import 'package:job_app/presentation/screens/admin/admin_screen.dart';
 import 'package:job_app/presentation/screens/home/home_screen.dart';
-import 'package:job_app/presentation/screens/notifications/notification_screen.dart';
-import 'package:job_app/presentation/screens/profiles/profile_screen.dart';
-import 'package:job_app/presentation/screens/setting/settings_screen.dart';
 import 'package:job_app/presentation/screens/messaging/messaging_screen.dart';
+import 'package:job_app/presentation/screens/notifications/notification_screen.dart';
+import 'package:job_app/presentation/screens/profiles/employer_profile_screen.dart';
+import 'package:job_app/presentation/screens/profiles/payment_screen.dart';
+import 'package:job_app/presentation/screens/profiles/profile_screen.dart';
+import 'package:job_app/presentation/screens/profiles/profile_viewer_screen.dart';
+import 'package:job_app/presentation/screens/setting/settings_screen.dart';
+
 
 void main() {
-  runApp(const JobHopApp());
+  runApp(const MyApp());
 }
 
-class JobHopApp extends StatelessWidget {
-  const JobHopApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Job Hop',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      initialRoute: '/home', // For testing
+      initialRoute: '/home',
       routes: {
-        '/onboarding': (context) => const OnboardingScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/registration': (context) => const RegistrationScreen(),
-        '/home': (context) {
-          final username = ModalRoute.of(context)?.settings.arguments as String? ?? 'User';
-          return HomeScreen(username: username);
-        },
+        '/home': (context) => HomeScreen(username: ModalRoute.of(context)?.settings.arguments as String? ?? 'User'),
+        '/profile': (context) => ProfileScreen(username: ModalRoute.of(context)?.settings.arguments as String? ?? 'User'),
+        '/settings': (context) => SettingsScreen(username: ModalRoute.of(context)?.settings.arguments as String? ?? 'User'),
         '/notifications': (context) => const NotificationScreen(),
-        '/profile': (context) {
-          final username = ModalRoute.of(context)?.settings.arguments as String? ?? 'User';
-          return ProfileScreen(username: username);
-        },
-        '/settings': (context) {
-          final username = ModalRoute.of(context)?.settings.arguments as String? ?? 'User';
-          return SettingsScreen(username: username);
-        },
-        '/messages': (context) {
-          final username = ModalRoute.of(context)?.settings.arguments as String? ?? 'User';
-          return MessagingScreen(username: username);
+        '/messages': (context) => MessagingScreen(username: ModalRoute.of(context)?.settings.arguments as String? ?? 'User'),
+        '/profile_viewer': (context) => ProfileViewerScreen(userId: ModalRoute.of(context)?.settings.arguments as String? ?? 'unknown'),
+        '/employer_profile': (context) => EmployerProfileScreen(employerId: ModalRoute.of(context)?.settings.arguments as String? ?? 'unknown'),
+        '/payment': (context) => PaymentScreen(
+              onPaymentComplete: (method) => print('Payment completed with $method'), // Placeholder callback
+            ),
+        '/admin': (context) {
+          // TODO: Implement role check for admin access
+          // Example: bool isAdmin = await FirebaseFirestore.instance.collection('users').doc(currentUserId).get().then((doc) => doc['isAdmin'] ?? false);
+          // if (!isAdmin) return HomeScreen(username: 'User');
+          return const AdminScreen();
         },
       },
-      debugShowCheckedModeBanner: false,
     );
   }
 }

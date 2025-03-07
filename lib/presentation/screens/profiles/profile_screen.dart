@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:async'; // For StreamSubscription
+//import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:job_app/presentation/screens/profiles/payment_screen.dart'; // For Firestore
 
 class ProfileScreen extends StatefulWidget {
   final String username;
@@ -20,23 +23,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, String>> _experience = []; // Example experience
   List<Map<String, String>> _education = []; // Example education
   List<Map<String, String>> _postedJobs = []; // Example posted jobs
+  List<Map<String, String>> _recommendations = [
+    {'text': 'Great team player!', 'from': 'TechCorpHR', 'id': 'rec1'},
+  ]; // Example recommendations
   String _photoUrl = ''; // Placeholder for profile photo
+  String _companyLogoUrl = ''; // Placeholder for company logo
+  StreamSubscription<DocumentSnapshot>? _requestListener; // Listener for admin updates
 
   @override
   void initState() {
     super.initState();
     _emailController.text = '${widget.username}@example.com'; // Example email
     // TODO: Fetch real user data from database/API (e.g., Firebase)
-    // Example: _isEmployer = await fetchUserRole(widget.username);
-    // _skills = await fetchSkills(widget.username);
-    // _resumeController.text = await fetchResume(widget.username);
-    // _photoUrl = await fetchProfilePhoto(widget.username);
-    // if (_isEmployer) {
-    //   _companyController.text = await fetchCompanyName(widget.username);
-    //   _companyDescController.text = await fetchCompanyDesc(widget.username);
-    //   _postedJobs = await fetchPostedJobs(widget.username);
-    //   _isVerified = await fetchVerificationStatus(widget.username);
-    // }
+    // Example: FirebaseFirestore.instance.collection('users').doc(widget.username).get().then((doc) {
+    //   _isEmployer = doc['isEmployer'] ?? false;
+    //   _isVerified = doc['isVerified'] ?? false;
+    //   _emailController.text = doc['email'] ?? '';
+    //   _companyController.text = doc['company'] ?? '';
+    //   _companyDescController.text = doc['companyDesc'] ?? '';
+    //   _resumeController.text = doc['resume'] ?? '';
+    //   _skills = List<String>.from(doc['skills'] ?? []);
+    // });
   }
 
   @override
@@ -45,10 +52,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _companyController.dispose();
     _resumeController.dispose();
     _companyDescController.dispose();
+    _requestListener?.cancel(); // Cancel the listener to avoid memory leaks
     super.dispose();
   }
 
-  // Switch to Employer with protocols including payment
   void _switchToEmployer() {
     showDialog(
       context: context,
@@ -62,47 +69,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               TextField(
                 controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Business Email',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Business Email', border: OutlineInputBorder()),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _companyController,
-                decoration: const InputDecoration(
-                  labelText: 'Company Name',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Company Name', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _companyDescController,
-                decoration: const InputDecoration(
-                  labelText: 'Company Description',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Company Description', border: OutlineInputBorder()),
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
-              const Text('A one-time fee of \$10 is required to switch to Employer mode.',
-                  style: TextStyle(fontSize: 14, color: Colors.grey)),
+              const Text('A one-time fee of \$10 is required.', style: TextStyle(fontSize: 14, color: Colors.grey)),
             ],
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              if (_emailController.text.isNotEmpty &&
-                  _companyController.text.isNotEmpty &&
-                  _companyDescController.text.isNotEmpty) {
+              if (_emailController.text.isNotEmpty && _companyController.text.isNotEmpty && _companyDescController.text.isNotEmpty) {
                 Navigator.pop(context);
-                _initiatePaymentAndSwitch();
+                _proceedToPayment();
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Please fill all fields')),
@@ -116,55 +108,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Initiate payment and switch to employer mode
-  void _initiatePaymentAndSwitch() async {
-    // TODO: Integrate with payment gateway (e.g., Stripe, PayPal)
-    // 1. Show payment UI (e.g., Stripe Checkout)
-    // Example: bool paymentSuccess = await processPayment(amount: 10.00, currency: 'USD');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Processing payment...')),
+  void _proceedToPayment() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentScreen(
+          onPaymentComplete: (method) {
+            _initiatePaymentAndSwitch(method);
+          },
+        ),
+      ),
     );
+  }
 
-    // Simulate payment process
-    bool paymentSuccess = await Future.delayed(const Duration(seconds: 2), () => true); // Placeholder
-
+  void _initiatePaymentAndSwitch(String paymentMethod) async {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Processing payment via $paymentMethod...')));
+    bool paymentSuccess = await Future.delayed(const Duration(seconds: 2), () => true); // Simulate payment
     if (paymentSuccess) {
-      // TODO: Save payment confirmation to database
-      // Example: await savePaymentRecord(widget.username, amount: 10.00, status: 'completed');
       _requestEmployerStatus();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment failed. Please try again.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment failed. Please try again.')));
     }
   }
 
-  // Request employer status after payment
   void _requestEmployerStatus() async {
-    // TODO: Integrate with backend for employer verification
-    // 1. Send email verification link to _emailController.text
-    // Example: await sendEmailVerification(_emailController.text);
-    // 2. Save request to database with pending status
-    // Example: await saveEmployerRequest(widget.username, _emailController.text, _companyController.text, _companyDescController.text);
-    // 3. Notify admin for manual approval (e.g., via Firebase Cloud Functions)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Employer request submitted. Awaiting approval...')),
-    );
-
-    // Simulate approval delay (replace with real backend response)
-    await Future.delayed(const Duration(seconds: 2));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employer request submitted. Awaiting approval...')));
     setState(() {
       _isEmployer = true;
       _isVerified = false; // Pending verification
-      // TODO: Update user role in database
-      // Example: await updateUserRole(widget.username, 'Employer', isVerified: false);
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Switched to Employer mode (pending verification)')),
-    );
+
+    // TODO: Save employer request to backend and get request ID
+    String requestId = await FirebaseFirestore.instance.collection('employer_requests').add({
+      'username': widget.username,
+      'email': _emailController.text,
+      'company': _companyController.text,
+      'description': _companyDescController.text,
+      'status': 'pending',
+      'timestamp': FieldValue.serverTimestamp(),
+    }).then((doc) => doc.id);
+
+    // Listen for real-time updates on the request status
+    _requestListener = FirebaseFirestore.instance.collection('employer_requests').doc(requestId).snapshots().listen((snapshot) {
+      if (snapshot.exists) {
+        String status = snapshot.data()!['status'];
+        if (status == 'approved') {
+          setState(() {
+            _isVerified = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employer mode approved!')));
+          _requestListener?.cancel(); // Stop listening once approved
+        } else if (status == 'rejected') {
+          setState(() {
+            _isEmployer = false;
+            _isVerified = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employer request rejected.')));
+          _requestListener?.cancel(); // Stop listening once rejected
+        }
+      }
+    });
+
+    // Simulate admin approval delay (remove this in real implementation)
+    // await Future.delayed(const Duration(seconds: 3));
+    // bool approved = true; // Simulated approval
+    // if (approved) {
+    //   setState(() {
+    //     _isVerified = true;
+    //   });
+    //   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employer mode approved!')));
+    // } else {
+    //   setState(() {
+    //     _isEmployer = false;
+    //     _isVerified = false;
+    //   });
+    //   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employer request rejected.')));
+    // }
   }
 
-  // Switch back to Job Seeker
   void _switchToJobSeeker() {
     setState(() {
       _isEmployer = false;
@@ -172,38 +193,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _companyController.clear();
       _companyDescController.clear();
       _postedJobs.clear();
-      // TODO: Update user role in database
-      // Example: await updateUserRole(widget.username, 'Job Seeker');
+      // TODO: Update user role in backend
+      // Example: FirebaseFirestore.instance.collection('users').doc(widget.username).update({
+      //   'isEmployer': false,
+      //   'isVerified': false,
+      // });
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Switched to Job Seeker mode')),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Switched to Job Seeker mode')));
   }
 
-  // Navigate to job posting screen
   void _postJob() {
-    if (_isEmployer) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => JobPostingScreen(onJobPosted: _addPostedJob)),
-      );
+    if (_isEmployer && _isVerified) {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => JobPostingScreen(onJobPosted: _addPostedJob)));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Switch to Employer mode to post jobs')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verify Employer mode to post jobs')));
     }
   }
 
-  // Add posted job to list
   void _addPostedJob(Map<String, String> job) {
     setState(() {
       _postedJobs.add(job);
-      // TODO: Save job to database and sync with HomeScreen
-      // Example: await saveJobToDatabase(job);
+      // TODO: Save job to backend
+      // Example: FirebaseFirestore.instance.collection('jobs').add(job);
     });
   }
 
-  // Edit skills
   void _editSkills() {
     final TextEditingController skillController = TextEditingController();
     showDialog(
@@ -222,17 +236,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               if (skillController.text.isNotEmpty) {
                 setState(() {
                   _skills.add(skillController.text);
-                  // TODO: Save updated skills to database
-                  // Example: await updateSkills(widget.username, _skills);
+                  // TODO: Save updated skills to backend
+                  // Example: FirebaseFirestore.instance.collection('users').doc(widget.username).update({'skills': _skills});
                 });
                 Navigator.pop(context);
               }
@@ -244,13 +255,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Placeholder for photo upload
   void _uploadPhoto() {
-    // TODO: Integrate with file picker and cloud storage (e.g., Firebase Storage)
-    // Example: _photoUrl = await uploadProfilePhoto(widget.username);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Photo upload coming soon!')),
-    );
+    // TODO: Implement photo upload with Firebase Storage
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Photo upload coming soon!')));
+  }
+
+  void _uploadCompanyLogo() {
+    // TODO: Implement logo upload with Firebase Storage
+    // Example: File file = await pickImage(); _companyLogoUrl = await uploadToStorage(file, 'company_logos/$username');
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logo upload coming soon!')));
   }
 
   @override
@@ -258,12 +271,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context); // Navigate back to previous screen (Home or Settings)
-          },
-        ),
         title: const Text('Profile'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
@@ -273,41 +280,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Picture
             Center(
               child: CircleAvatar(
                 radius: 50,
                 backgroundColor: Colors.blue,
                 child: _photoUrl.isEmpty
-                    ? Text(
-                        widget.username[0].toUpperCase(),
-                        style: const TextStyle(fontSize: 40, color: Colors.white),
-                      )
+                    ? Text(widget.username[0].toUpperCase(), style: const TextStyle(fontSize: 40, color: Colors.white))
                     : Image.network(_photoUrl, fit: BoxFit.cover),
               ),
             ),
             const SizedBox(height: 16),
-            Center(
-              child: ElevatedButton(
-                onPressed: _uploadPhoto,
-                child: const Text('Change Photo'),
-              ),
-            ),
+            Center(child: ElevatedButton(onPressed: _uploadPhoto, child: const Text('Change Photo'))),
             const SizedBox(height: 24),
-
-            // Basic Info
             const Text('Personal Information', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             Text('Username: ${widget.username}', style: const TextStyle(fontSize: 16)),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
+            TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'Email')),
             const SizedBox(height: 16),
-            Text('Role: ${_isEmployer ? 'Employer${_isVerified ? ' (Verified)' : ' (Pending)'}' : 'Job Seeker'}',
-                style: const TextStyle(fontSize: 16)),
+            Text(
+              'Role: ${_isEmployer ? 'Employer${_isVerified ? ' (Verified)' : ' (Pending)'}' : 'Job Seeker'}',
+              style: const TextStyle(fontSize: 16),
+            ),
             const Divider(),
-
-            // Job Seeker Section
             if (!_isEmployer) ...[
               const Text('Job Seeker Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               TextField(
@@ -323,13 +316,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 8),
               const Text('Experience (Coming Soon)', style: TextStyle(fontSize: 16)),
-              // TODO: Add form for experience (e.g., job title, company, dates)
               const SizedBox(height: 8),
               const Text('Education (Coming Soon)', style: TextStyle(fontSize: 16)),
-              // TODO: Add form for education (e.g., degree, institution, dates)
+              const SizedBox(height: 16),
+              const Text('Recommendations', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              _recommendations.isEmpty
+                  ? const Text('No recommendations yet')
+                  : Column(
+                      children: _recommendations.map((rec) => ListTile(
+                        title: Text(rec['text']!),
+                        subtitle: Text('From: ${rec['from']}'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            setState(() {
+                              _recommendations.remove(rec);
+                              // TODO: Delete recommendation from backend
+                            });
+                          },
+                        ),
+                      )).toList(),
+                    ),
             ],
-
-            // Employer Section
             if (_isEmployer) ...[
               const Text('Employer Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               TextField(
@@ -342,6 +350,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 decoration: const InputDecoration(labelText: 'Company Description'),
                 maxLines: 3,
               ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _uploadCompanyLogo,
+                child: const Text('Upload Company Logo'),
+              ),
+              const SizedBox(height: 16),
+              const Text('Analytics Dashboard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text('Job Views: 150 | Applications: 20'), // Placeholder
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _postJob,
@@ -358,23 +374,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? const Text('No jobs posted yet')
                   : Column(
                       children: _postedJobs.map((job) => ListTile(
-                            title: Text(job['title']!),
-                            subtitle: Text(job['company']!),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () {
-                                setState(() {
-                                  _postedJobs.remove(job);
-                                  // TODO: Delete job from database
-                                  // Example: await deleteJobFromDatabase(job['id']);
-                                });
-                              },
-                            ),
-                          )).toList(),
+                        title: Text(job['title']!),
+                        subtitle: Text(job['company']!),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            setState(() {
+                              _postedJobs.remove(job);
+                              // TODO: Delete job from backend
+                            });
+                          },
+                        ),
+                      )).toList(),
                     ),
             ],
-
-            // Actions
             const Divider(),
             ElevatedButton(
               onPressed: _isEmployer ? _switchToJobSeeker : _switchToEmployer,
@@ -388,18 +401,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                // TODO: Save profile changes to database
-                // Example: await saveProfile(
-                //   username: widget.username,
-                //   email: _emailController.text,
-                //   resume: _resumeController.text,
-                //   skills: _skills,
-                //   company: _companyController.text,
-                //   companyDesc: _companyDescController.text,
-                // );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profile saved')),
-                );
+                // TODO: Save profile changes to backend
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile saved')));
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
@@ -415,7 +418,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// Job Posting Screen with callback (unchanged)
 class JobPostingScreen extends StatefulWidget {
   final Function(Map<String, String>) onJobPosted;
 
@@ -456,13 +458,8 @@ class _JobPostingScreenState extends State<JobPostingScreen> {
         'salary': _salaryController.text,
         'postedBy': 'currentUser', // Replace with real username
       };
-      // TODO: Save job to database and sync with HomeScreen
-      // Example: String jobId = await saveJobToDatabase(job);
-      // job['id'] = jobId;
       widget.onJobPosted(job);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Job Posted: ${job['title']}')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Job Posted: ${job['title']}')));
       Navigator.pop(context);
     }
   }
@@ -489,10 +486,10 @@ class _JobPostingScreenState extends State<JobPostingScreen> {
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
-  controller: _companyController,
-  decoration: _inputDecoration('Company Name'),
-  validator: (value) => value!.isEmpty ? 'Enter company name' : null,
-),
+                  controller: _companyController,
+                  decoration: _inputDecoration('Company Name'),
+                  validator: (value) => value!.isEmpty ? 'Enter company name' : null,
+                ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _locationController,
