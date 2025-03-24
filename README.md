@@ -25,7 +25,7 @@ Follow these instructions to get a copy of the project up and running on your lo
 **Clone the repository**:
 
    ```
-   git clone https://github.com/Jambong-Ralpher/job_hop.git
+   git clone https://github.com/staysafe020/job_hop.git
    ```
 
 
