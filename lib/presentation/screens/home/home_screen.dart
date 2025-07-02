@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:job_app/presentation/screens/home/job_detail_screen.dart';
 import 'package:job_app/presentation/screens/profiles/profile_viewer_screen.dart';
 import 'package:job_app/presentation/screens/profiles/employer_profile_screen.dart'; // New import
+import 'package:provider/provider.dart';
+import '../provider/auth_provider.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String username; // Pass the username from login/registration
-
-  const HomeScreen({super.key, required this.username});
+  const HomeScreen({super.key, required String username});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -14,12 +14,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0; // Track the selected bottom navigation item
-  bool _isEmployer = false; // User role (fetch from backend)
-  bool _isVerified = false; // Employer verification status (fetch from backend)
-  bool _allowEmployerView = false; // Opt-in for profile visibility (fetch from backend)
-  bool _showSkills = true; // Granularity: Show skills (fetch from backend)
-  bool _showAppliedJobs = false; // Granularity: Show applied jobs (fetch from backend)
-  bool _showRecommendations = false; // Granularity: Show recommendation letters (fetch from backend)
+  final bool _isEmployer = false; // User role (fetch from backend)
+  final bool _isVerified = false; // Employer verification status (fetch from backend)
+  final bool _allowEmployerView = false; // Opt-in for profile visibility (fetch from backend)
+  final bool _showSkills = true; // Granularity: Show skills (fetch from backend)
+  final bool _showAppliedJobs = false; // Granularity: Show applied jobs (fetch from backend)
+  final bool _showRecommendations = false; // Granularity: Show recommendation letters (fetch from backend)
 
   // Sample job data (replace with real data from an API or database)
   final List<Map<String, String>> _jobs = [
@@ -113,45 +113,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // });
   }
 
-  // Get time-based greeting
-  String _getTimeBasedGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning, ${widget.username}!';
-    if (hour < 17) return 'Good Afternoon, ${widget.username}!';
-    return 'Good Evening, ${widget.username}!';
-  }
-
-  // Handle bottom navigation tap
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    switch (index) {
-      case 0:
-        // Already on Home
-        break;
-      case 1:
-        Navigator.pushNamed(context, '/notifications');
-        break;
-      case 2:
-        Navigator.pushNamed(context, '/messages', arguments: widget.username);
-        break;
-      case 3:
-        Navigator.pushNamed(context, '/settings', arguments: widget.username);
-        break;
-    }
-  }
-
-  // Show job details screen
-  void _showJobDetails(BuildContext context, Map<String, String> job) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => JobDetailsScreen(job: job)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    String username = authProvider.username ?? 'User';
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: CustomScrollView(
@@ -180,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           GestureDetector(
                             onTap: () {
-                              Navigator.pushNamed(context, '/profile', arguments: widget.username);
+                              Navigator.pushNamed(context, '/profile', arguments: username);
                             },
                             child: const CircleAvatar(
                               radius: 20,
@@ -191,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              _getTimeBasedGreeting(),
+                              _getTimeBasedGreeting(username),
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -294,10 +259,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       }),
                       if (_isEmployer)
                         _buildQuickAction('Post a Job', Icons.add, () {
-                          Navigator.pushNamed(context, '/profile', arguments: widget.username);
+                          Navigator.pushNamed(context, '/profile', arguments: username);
                         }),
                       _buildQuickAction('Messages', Icons.message, () {
-                        Navigator.pushNamed(context, '/messages', arguments: widget.username);
+                        Navigator.pushNamed(context, '/messages', arguments: username);
                       }),
                     ],
                   ),
@@ -345,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 const SizedBox(height: 8),
                                 ElevatedButton(
                                   onPressed: () {
-                                    Navigator.pushNamed(context, '/profile', arguments: widget.username);
+                                    Navigator.pushNamed(context, '/profile', arguments: username);
                                   },
                                   child: const Text('Edit Profile'),
                                 ),
@@ -451,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
+        onTap: (index) => _onItemTapped(index, username),
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
@@ -462,6 +427,43 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),
+    );
+  }
+
+  // Get time-based greeting
+  String _getTimeBasedGreeting(String username) {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning, $username!';
+    if (hour < 17) return 'Good Afternoon, $username!';
+    return 'Good Evening, $username!';
+  }
+
+  // Handle bottom navigation tap
+  void _onItemTapped(int index, String username) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    switch (index) {
+      case 0:
+        // Already on Home
+        break;
+      case 1:
+        Navigator.pushNamed(context, '/notifications');
+        break;
+      case 2:
+        Navigator.pushNamed(context, '/messages', arguments: username);
+        break;
+      case 3:
+        Navigator.pushNamed(context, '/settings', arguments: username);
+        break;
+    }
+  }
+
+  // Show job details screen
+  void _showJobDetails(BuildContext context, Map<String, String> job) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => JobDetailsScreen(job: job)),
     );
   }
 

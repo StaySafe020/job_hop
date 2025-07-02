@@ -14,7 +14,7 @@ class _MessagingScreenState extends State<MessagingScreen> {
   int _unreadMessageCount = 0; // Track total unread messages across conversations
 
   // Sample conversation data (replace with real data from database)
-  List<Map<String, dynamic>> _conversations = [
+  final List<Map<String, dynamic>> _conversations = [
     {
       'contact': 'TechCorpHR',
       'lastMessage': 'We’d like to discuss your application.',
@@ -251,7 +251,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
 
   // Sample messages (replace with real data from database)
-  List<Map<String, dynamic>> _messages = [
+  final List<Map<String, dynamic>> _messages = [
     {'sender': 'TechCorpHR', 'text': 'Hi, we’d like to discuss your application.', 'time': '10:30 AM'},
     {'sender': 'User', 'text': 'Great, I’m available tomorrow!', 'time': '10:32 AM'},
   ];

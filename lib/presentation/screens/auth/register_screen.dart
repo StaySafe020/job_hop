@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '../provider/auth_provider.dart' as jobAppAuthProvider;
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -16,6 +20,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   // Form key for validation
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+  bool _isLoadingGoogle = false;
 
   @override
   void dispose() {
@@ -28,23 +34,79 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   // Handle registration submission
-  void _register() {
+  Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
-      // TODO: Implement registration logic (e.g., API call)
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration Successful!')),
-      );
-      // Navigate to login or home screen after successful registration
-      Navigator.pushReplacementNamed(context, '/login');
+      setState(() => _isLoading = true);
+      try {
+        // Create user in Firebase Auth
+        final UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+        final user = userCredential.user;
+        if (user != null) {
+          // Immediately show success and navigate
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Registration Successful!')),
+          );
+          setState(() => _isLoading = false);
+          Navigator.pushReplacementNamed(context, '/login');
+          // Firestore write in background
+          FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+            'name': _nameController.text.trim(),
+            'username': _usernameController.text.trim(),
+            'email': _emailController.text.trim(),
+            'createdAt': FieldValue.serverTimestamp(),
+          }).catchError((e) {
+            // Optionally show a warning if Firestore fails
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Warning: Could not save profile info.')),
+            );
+          });
+        }
+      } on FirebaseAuthException catch (e) {
+        String message = 'Registration failed.';
+        if (e.code == 'email-already-in-use') {
+          message = 'Email already in use.';
+        } else if (e.code == 'weak-password') {
+          message = 'Password is too weak.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+        setState(() => _isLoading = false);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unexpected error: $e')),
+        );
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // Handle Google sign-in
-  void _signInWithGoogle() {
-    // TODO: Implement Google sign-in logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Google Sign-In Coming Soon!')),
-    );
+  // Handle Google sign-up
+  Future<void> _signUpWithGoogle() async {
+    setState(() => _isLoadingGoogle = true);
+    try {
+      final authProvider = Provider.of<jobAppAuthProvider.AuthProvider>(context, listen: false);
+      await authProvider.signInWithGoogle();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google Sign-Up Successful!')),
+      );
+      // Wait for provider to update user data before navigating
+      await Future.delayed(const Duration(milliseconds: 300));
+      Navigator.pushReplacementNamed(context, '/home');
+    } on jobAppAuthProvider.AuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unexpected error: $e')),
+      );
+    } finally {
+      setState(() => _isLoadingGoogle = false);
+    }
   }
 
   // Handle Apple sign-in
@@ -135,7 +197,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
                 // Sign-up button with gesture
                 GestureDetector(
-                  onTap: _register,
+                  onTap: _isLoading ? null : _register,
                   onDoubleTap: () => ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Double-tap detected!')),
                   ),
@@ -148,15 +210,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       ),
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    child: const Center(
-                      child: Text(
-                        'Sign Up',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    child: Center(
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'Sign Up',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                 ),
@@ -175,23 +239,24 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Google sign-in button
+                // Google sign-up button
                 GestureDetector(
-                  onTap: _signInWithGoogle,
+                  onTap: _isLoadingGoogle ? null : _signUpWithGoogle,
                   child: _socialButton(
-                    'Sign in with Google',
+                    _isLoadingGoogle ? 'Signing up...' : 'Google Sign Up',
                     Colors.white,
                     Colors.black87,
                     Icons.g_mobiledata,
+                    isLoading: _isLoadingGoogle,
                   ),
                 ),
                 const SizedBox(height: 15),
 
-                // Apple sign-in button
+                // Apple sign-up button
                 GestureDetector(
                   onTap: _signInWithApple,
                   child: _socialButton(
-                    'Sign in with Apple',
+                    'Apple Sign Up',
                     Colors.black,
                     Colors.white,
                     Icons.apple,
@@ -246,7 +311,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   // Reusable social button widget
-  Widget _socialButton(String text, Color bgColor, Color textColor, IconData icon) {
+  Widget _socialButton(String text, Color bgColor, Color textColor, IconData icon, {bool isLoading = false}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -266,14 +331,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         children: [
           Icon(icon, color: textColor),
           const SizedBox(width: 10),
-          Text(
-            text,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          isLoading
+              ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+              : Text(
+                  text,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
         ],
       ),
     );

@@ -27,17 +27,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           children: [
             // Logo widget - Replace with your actual logo asset
             Image.asset(
-              'assets/images/swift.png', // Add your logo path here
-              width: 150, // Adjust size as needed
-              height: 150,
+              'assets/images/Work From Home - Girl S.png', // Changed to a job-related image
+              width: 180,
+              height: 180,
             ),
             const SizedBox(height: 20), // Space between logo and text
             const Text(
               'Welcome to Job Hop',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: Colors.black, // Adjust color as needed
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 32.0),
+              child: Text(
+                'Find your dream job, connect with top employers, and manage your career all in one place. Job Hop makes job searching, applications, and professional networking easy and effective.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
               ),
             ),
           ],

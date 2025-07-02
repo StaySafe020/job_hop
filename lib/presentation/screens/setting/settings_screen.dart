@@ -122,8 +122,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         value: tempJobTypes.contains(type),
                         onChanged: (value) {
                           setDialogState(() {
-                            if (value == true) tempJobTypes.add(type);
-                            else tempJobTypes.remove(type);
+                            if (value == true) {
+                              tempJobTypes.add(type);
+                            } else {
+                              tempJobTypes.remove(type);
+                            }
                           });
                         },
                       )),

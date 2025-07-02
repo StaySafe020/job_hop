@@ -88,14 +88,14 @@ class ProfileViewerScreen extends StatelessWidget {
   }
 
   void _showRecommendationForm(BuildContext context, String userId) {
-    final TextEditingController _recommendationController = TextEditingController();
+    final TextEditingController recommendationController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Submit Recommendation'),
         content: TextField(
-          controller: _recommendationController,
+          controller: recommendationController,
           decoration: const InputDecoration(
             labelText: 'Recommendation',
             border: OutlineInputBorder(),
@@ -109,7 +109,7 @@ class ProfileViewerScreen extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () {
-              if (_recommendationController.text.isNotEmpty) {
+              if (recommendationController.text.isNotEmpty) {
                 // TODO: Submit recommendation to backend
                 // Example: await FirebaseFirestore.instance.collection('users').doc(userId).collection('recommendations').add({
                 //   'text': _recommendationController.text,

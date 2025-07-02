@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:job_app/presentation/screens/home/home_screen.dart';
 import 'package:job_app/presentation/screens/home/job_detail_screen.dart'; // Import to reuse JobDetailsScreen
 
 class NotificationScreen extends StatefulWidget {
@@ -14,7 +13,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   int _unreadCount = 0; // Track unread notifications
 
   // Sample notification data (replace with real data from an API or database)
-  List<Map<String, dynamic>> _notifications = [
+  final List<Map<String, dynamic>> _notifications = [
     {
       'id': 1,
       'title': 'Application Update',
