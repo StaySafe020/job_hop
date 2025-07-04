@@ -4,6 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:job_app/presentation/screens/provider/auth_provider.dart';
 import 'package:job_app/presentation/screens/profiles/payment_screen.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 
 class ProfileScreen extends StatefulWidget {
   final String username;
@@ -23,20 +26,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _companyDescController = TextEditingController();
   List<String> _skills = ['Flutter', 'Dart'];
   final List<Map<String, String>> _experience = [];
-  final List<Map<String, String>> _education = [];
   final List<Map<String, String>> _postedJobs = [];
   final List<Map<String, String>> _recommendations = [
     {'text': 'Great team player!', 'from': 'TechCorpHR', 'id': 'rec1'},
   ];
   final String _photoUrl = '';
-  final String _companyLogoUrl = '';
   StreamSubscription<DocumentSnapshot>? _requestListener;
 
   @override
   void initState() {
     super.initState();
-    _emailController.text = '${widget.username}@example.com';
-    // Fetch real user data from Firestore (example)
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    if (user != null) {
+      _emailController.text = user.email ?? '';
+    }
     _fetchUserData();
   }
 
@@ -61,6 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _companyDescController.text = doc['companyDesc'] ?? '';
         _resumeController.text = doc['resume'] ?? '';
         _skills = List<String>.from(doc['skills'] ?? ['Flutter', 'Dart']);
+        _experience.addAll(List<Map<String, String>>.from(doc['experience'] ?? []));
       });
     }
   }
@@ -194,17 +198,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _postJob() {
     if (_isEmployer && _isVerified) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => JobPostingScreen(onJobPosted: _addPostedJob)));
+      // Navigate to the main PostJobScreen instead of JobPostingScreen
+      Navigator.pushNamed(context, '/post_job');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verify Employer mode to post jobs')));
     }
-  }
-
-  void _addPostedJob(Map<String, String> job) {
-    setState(() {
-      _postedJobs.add(job);
-      FirebaseFirestore.instance.collection('jobs').add(job);
-    });
   }
 
   void _editSkills() {
@@ -243,12 +241,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _editExperience() {
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController companyController = TextEditingController();
+    final TextEditingController yearsController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Experience'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(labelText: 'Job Title'),
+            ),
+            TextField(
+              controller: companyController,
+              decoration: const InputDecoration(labelText: 'Company'),
+            ),
+            TextField(
+              controller: yearsController,
+              decoration: const InputDecoration(labelText: 'Years'),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (titleController.text.isNotEmpty && companyController.text.isNotEmpty && yearsController.text.isNotEmpty) {
+                setState(() {
+                  _experience.add({
+                    'title': titleController.text,
+                    'company': companyController.text,
+                    'years': yearsController.text,
+                  });
+                  FirebaseFirestore.instance.collection('users').doc(widget.username).update({'experience': _experience});
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _uploadPhoto() {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Photo upload coming soon!')));
   }
 
   void _uploadCompanyLogo() {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logo upload coming soon!')));
+  }
+
+  void _uploadResumePdf() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+    if (result != null && result.files.single.path != null) {
+      final file = result.files.single;
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
+      if (user == null) return;
+      final ref = FirebaseStorage.instance.ref().child('resumes/${user.uid}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      await ref.putData(file.bytes ?? await File(file.path!).readAsBytes());
+      final url = await ref.getDownloadURL();
+      setState(() {
+        _resumeController.text = url;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resume PDF uploaded!')));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No file selected.')));
+    }
   }
 
   @override
@@ -288,9 +353,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Divider(),
             if (!_isEmployer) ...[
               const Text('Job Seeker Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              // Resume upload and text edit
               TextField(
                 controller: _resumeController,
                 decoration: const InputDecoration(labelText: 'Resume Link (e.g., Google Drive)'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _uploadResumePdf,
+                child: const Text('Upload PDF Resume'),
               ),
               const SizedBox(height: 8),
               ListTile(
@@ -300,7 +371,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: _editSkills,
               ),
               const SizedBox(height: 8),
-              const Text('Experience (Coming Soon)', style: TextStyle(fontSize: 16)),
+              ListTile(
+                title: const Text('Experience'),
+                subtitle: Text(_experience.isEmpty ? 'No experience added' : _experience.map((e) => e['title'] ?? '').join(', ')),
+                trailing: const Icon(Icons.edit),
+                onTap: _editExperience,
+              ),
               const SizedBox(height: 8),
               const Text('Education (Coming Soon)', style: TextStyle(fontSize: 16)),
               const SizedBox(height: 16),
@@ -396,6 +472,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   'companyDesc': _companyDescController.text,
                   'resume': _resumeController.text,
                   'skills': _skills,
+                  'experience': _experience,
                 }, SetOptions(merge: true));
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile saved')));
               },
@@ -409,132 +486,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class JobPostingScreen extends StatefulWidget {
-  final Function(Map<String, String>) onJobPosted;
-
-  const JobPostingScreen({super.key, required this.onJobPosted});
-
-  @override
-  State<JobPostingScreen> createState() => _JobPostingScreenState();
-}
-
-class _JobPostingScreenState extends State<JobPostingScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _companyController = TextEditingController();
-  final _locationController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _requirementsController = TextEditingController();
-  final _salaryController = TextEditingController();
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _companyController.dispose();
-    _locationController.dispose();
-    _descriptionController.dispose();
-    _requirementsController.dispose();
-    _salaryController.dispose();
-    super.dispose();
-  }
-
-  void _submitJobPosting() {
-    if (_formKey.currentState!.validate()) {
-      final job = {
-        'title': _titleController.text,
-        'company': _companyController.text,
-        'location': _locationController.text,
-        'description': _descriptionController.text,
-        'requirements': _requirementsController.text,
-        'salary': _salaryController.text,
-        'postedBy': 'currentUser', // Replace with real username
-      };
-      widget.onJobPosted(job);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Job Posted: ${job['title']}')));
-      Navigator.pop(context);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Post a Job'),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextFormField(
-                  controller: _titleController,
-                  decoration: _inputDecoration('Job Title'),
-                  validator: (value) => value!.isEmpty ? 'Enter job title' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _companyController,
-                  decoration: _inputDecoration('Company Name'),
-                  validator: (value) => value!.isEmpty ? 'Enter company name' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _locationController,
-                  decoration: _inputDecoration('Location'),
-                  validator: (value) => value!.isEmpty ? 'Enter location' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: _inputDecoration('Description'),
-                  maxLines: 3,
-                  validator: (value) => value!.isEmpty ? 'Enter description' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _requirementsController,
-                  decoration: _inputDecoration('Requirements'),
-                  maxLines: 3,
-                  validator: (value) => value!.isEmpty ? 'Enter requirements' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _salaryController,
-                  decoration: _inputDecoration('Salary Range'),
-                  validator: (value) => value!.isEmpty ? 'Enter salary range' : null,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _submitJobPosting,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  child: const Text('Submit Job Posting'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      filled: true,
-      fillColor: Colors.grey[200],
     );
   }
 }

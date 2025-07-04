@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:job_app/presentation/screens/home/job_detail_screen.dart';
 import 'package:job_app/presentation/screens/profiles/profile_viewer_screen.dart';
-import 'package:job_app/presentation/screens/profiles/employer_profile_screen.dart'; // New import
 import 'package:provider/provider.dart';
 import '../provider/auth_provider.dart';
 
@@ -16,10 +15,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0; // Track the selected bottom navigation item
   final bool _isEmployer = false; // User role (fetch from backend)
   final bool _isVerified = false; // Employer verification status (fetch from backend)
-  final bool _allowEmployerView = false; // Opt-in for profile visibility (fetch from backend)
-  final bool _showSkills = true; // Granularity: Show skills (fetch from backend)
-  final bool _showAppliedJobs = false; // Granularity: Show applied jobs (fetch from backend)
-  final bool _showRecommendations = false; // Granularity: Show recommendation letters (fetch from backend)
 
   // Sample job data (replace with real data from an API or database)
   final List<Map<String, String>> _jobs = [
@@ -97,6 +92,33 @@ class _HomeScreenState extends State<HomeScreen> {
   // Sample career tip
   final String _careerTip = 'Tailor your resume for each job to stand out!';
 
+  // Add state for search
+  String _searchQuery = '';
+
+  // Track jobs viewed and applications
+  int _jobsViewed = 0;
+
+  List<Map<String, String>> get _filteredJobs {
+    if (_searchQuery.isEmpty) return _jobs;
+    return _jobs.where((job) {
+      final query = _searchQuery.toLowerCase();
+      return job['title']!.toLowerCase().contains(query) ||
+          job['company']!.toLowerCase().contains(query) ||
+          job['location']!.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  // Recommendations based on user search
+  List<Map<String, String>> get _recommendedJobsDynamic {
+    if (_searchQuery.isEmpty) return [];
+    final query = _searchQuery.toLowerCase();
+    return _jobs.where((job) {
+      return job['title']!.toLowerCase().contains(query) ||
+          job['company']!.toLowerCase().contains(query) ||
+          job['location']!.toLowerCase().contains(query);
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -113,10 +135,17 @@ class _HomeScreenState extends State<HomeScreen> {
     // });
   }
 
+  void _incrementJobsViewed() {
+    setState(() {
+      _jobsViewed++;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     String username = authProvider.username ?? 'User';
+    final jobsToShow = _filteredJobs;
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: CustomScrollView(
@@ -172,10 +201,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: TextStyle(fontSize: 16, color: Colors.white70),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Jobs Viewed: 3 | Applications: 2',
-                        style: const TextStyle(fontSize: 14, color: Colors.white),
-                      ),
+                      if (_jobsViewed > 0)
+                        Text(
+                          'Jobs Viewed: $_jobsViewed',
+                          style: const TextStyle(fontSize: 14, color: Colors.white),
+                        ),
                     ],
                   ),
                 ),
@@ -191,6 +221,63 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ],
+          ),
+          // AI-powered job suggestions placeholder
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+              child: Card(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.auto_awesome, color: Colors.deepPurple),
+                          SizedBox(width: 10),
+                          Text('Recommended Jobs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (_recommendedJobsDynamic.isEmpty)
+                        const Text('Start searching to see recommended jobs based on your interests.'),
+                      if (_recommendedJobsDynamic.isNotEmpty)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: _recommendedJobsDynamic.take(3).map((job) => ListTile(
+                                title: Text(job['title'] ?? ''),
+                                subtitle: Text(job['company'] ?? ''),
+                                trailing: const Icon(Icons.recommend),
+                                onTap: () => _showJobDetails(context, job),
+                              )).toList(),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search jobs by title, company, or location',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              ),
+            ),
           ),
           SliverToBoxAdapter(
             child: Padding(
@@ -241,8 +328,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ],
                               ),
                             ),
-                          ),
-                        );
+                          );
+                        };
                       },
                     ),
                   ),
@@ -257,10 +344,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SnackBar(content: Text('Search Coming Soon!')),
                         );
                       }),
-                      if (_isEmployer)
-                        _buildQuickAction('Post a Job', Icons.add, () {
-                          Navigator.pushNamed(context, '/profile', arguments: username);
-                        }),
+                      // Add Post a Job for all users (with verification in the screen)
+                      _buildQuickAction('Post a Job', Icons.add, () {
+                        Navigator.pushNamed(context, '/post_job');
+                      }),
                       _buildQuickAction('Messages', Icons.message, () {
                         Navigator.pushNamed(context, '/messages', arguments: username);
                       }),
@@ -385,7 +472,7 @@ class _HomeScreenState extends State<HomeScreen> {
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final job = _jobs[index];
+                final job = jobsToShow[index];
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -409,7 +496,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               },
-              childCount: _jobs.length,
+              childCount: jobsToShow.length,
             ),
           ),
         ],
@@ -461,6 +548,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Show job details screen
   void _showJobDetails(BuildContext context, Map<String, String> job) {
+    _incrementJobsViewed();
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => JobDetailsScreen(job: job)),

@@ -5,6 +5,7 @@ import 'package:job_app/presentation/screens/auth/login_screen.dart';
 import 'package:job_app/presentation/screens/auth/register_screen.dart';
 //import 'package:job_hop/presentation/screens/auth/register_screen.dart'; // Import RegistrationScreen
 import 'package:job_app/presentation/screens/home/home_screen.dart';
+import 'package:job_app/presentation/screens/home/post_job_screen.dart';
 import 'package:job_app/presentation/screens/messaging/messaging_screen.dart';
 import 'package:job_app/presentation/screens/notifications/notification_screen.dart';
 import 'package:job_app/presentation/screens/onboarding/onboarding_screen.dart';
@@ -29,15 +30,30 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void _toggleTheme() {
+    setState(() {
+      _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Job Hop',
-      initialRoute: '/onboarding', // Start with onboarding
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
+      themeMode: _themeMode,
+      initialRoute: '/onboarding',
       routes: {
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginScreen(),
@@ -58,6 +74,23 @@ class MyApp extends StatelessWidget {
           // if (!isAdmin) return HomeScreen(username: 'User');
           return const AdminScreen();
         },
+        '/post_job': (context) => const PostJobScreen(),
+      },
+      builder: (context, child) {
+        return Stack(
+          children: [
+            child!,
+            Positioned(
+              right: 16,
+              top: 40,
+              child: IconButton(
+                icon: Icon(_themeMode == ThemeMode.dark ? Icons.light_mode : Icons.dark_mode),
+                onPressed: _toggleTheme,
+                tooltip: 'Toggle Theme',
+              ),
+            ),
+          ],
+        );
       },
     );
   }

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:job_app/presentation/screens/profiles/employer_profile_screen.dart';
 
@@ -8,18 +10,58 @@ class JobDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Support both Map<String, String> and Map<String, dynamic> for job
+    final isFilled = job['filled'] == true || job['filled'] == 'true';
     return Scaffold(
       appBar: AppBar(
         title: Text(job['title']!),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
+        actions: [
+          // If the current user is the poster, allow marking as filled
+          if (FirebaseAuth.instance.currentUser?.uid == job['postedBy'])
+            IconButton(
+              icon: const Icon(Icons.check_circle, color: Colors.green),
+              tooltip: isFilled ? 'Job already filled' : 'Mark as Filled',
+              onPressed: isFilled
+                  ? null
+                  : () async {
+                      await FirebaseFirestore.instance
+                          .collection('jobs')
+                          .where('title', isEqualTo: job['title'])
+                          .where('postedBy', isEqualTo: job['postedBy'])
+                          .limit(1)
+                          .get()
+                          .then((snapshot) {
+                        if (snapshot.docs.isNotEmpty) {
+                          snapshot.docs.first.reference.update({'filled': true});
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Job marked as filled.')));
+                        }
+                      });
+                    },
+            ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(job['title']!, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                Text(job['title']!, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 10),
+                if (isFilled)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('Filled', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  ),
+              ],
+            ),
             const SizedBox(height: 8),
             Text('Company: ${job['company']}', style: const TextStyle(fontSize: 18)),
             Text('Location: ${job['location']}', style: const TextStyle(fontSize: 18)),
@@ -46,14 +88,14 @@ class JobDetailsScreen extends StatelessWidget {
             Text('Salary: ${job['salary']}', style: const TextStyle(fontSize: 16)),
             const Spacer(),
             ElevatedButton(
-              onPressed: () => _showApplicationForm(context, job),
+              onPressed: isFilled ? null : () => _showApplicationForm(context, job),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: isFilled ? Colors.grey : Colors.blue,
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Apply', style: TextStyle(fontSize: 18)),
+              child: Text(isFilled ? 'Position Filled' : 'Apply', style: const TextStyle(fontSize: 18)),
             ),
           ],
         ),
@@ -84,6 +126,24 @@ class _ApplicationFormDialogState extends State<ApplicationFormDialog> {
   final _emailController = TextEditingController();
   final _resumeController = TextEditingController();
   final _coverLetterController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Autofill if user is logged in
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _emailController.text = user.email ?? '';
+      // Optionally fetch name/resume from Firestore
+      FirebaseFirestore.instance.collection('users').doc(user.uid).get().then((doc) {
+        if (doc.exists) {
+          _nameController.text = doc['name'] ?? '';
+          _resumeController.text = doc['resume'] ?? '';
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -94,13 +154,33 @@ class _ApplicationFormDialogState extends State<ApplicationFormDialog> {
     super.dispose();
   }
 
-  void _submitApplication() {
+  Future<void> _submitApplication() async {
     if (_formKey.currentState!.validate()) {
-      // TODO: Send application data to employer (e.g., API call)
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Application submitted for ${widget.job['title']}')),
-      );
-      Navigator.pop(context); // Close the dialog
+      setState(() => _isSubmitting = true);
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        await FirebaseFirestore.instance.collection('applications').add({
+          'jobId': widget.job['id'] ?? '',
+          'jobTitle': widget.job['title'] ?? '',
+          'applicantUid': user?.uid ?? '',
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'resume': _resumeController.text.trim(),
+          'coverLetter': _coverLetterController.text.trim(),
+          'status': 'submitted',
+          'appliedAt': FieldValue.serverTimestamp(),
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Application submitted for ${widget.job['title']}')),
+        );
+        Navigator.pop(context); // Close the dialog
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit application: $e')),
+        );
+      } finally {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
@@ -151,9 +231,9 @@ class _ApplicationFormDialogState extends State<ApplicationFormDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         ElevatedButton(
-          onPressed: _submitApplication,
+          onPressed: _isSubmitting ? null : _submitApplication,
           style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-          child: const Text('Apply Now'),
+          child: _isSubmitting ? const CircularProgressIndicator(color: Colors.white) : const Text('Apply Now'),
         ),
       ],
     );

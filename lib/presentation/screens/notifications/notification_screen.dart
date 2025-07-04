@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:job_app/presentation/screens/home/job_detail_screen.dart'; // Import to reuse JobDetailsScreen
 
@@ -9,61 +11,34 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  int _selectedIndex = 1; // Default to Notifications (index 1)
-  int _unreadCount = 0; // Track unread notifications
-
-  // Sample notification data (replace with real data from an API or database)
-  final List<Map<String, dynamic>> _notifications = [
-    {
-      'id': 1,
-      'title': 'Application Update',
-      'message': 'Your application for Software Engineer at TechCorp has been viewed.',
-      'time': '2 hours ago',
-      'isRead': false,
-    },
-    {
-      'id': 2,
-      'title': 'New Job Posting',
-      'message': 'A new UI/UX Designer role at Designify matches your profile.',
-      'time': '5 hours ago',
-      'isRead': true,
-      'jobDetails': {
-        'title': 'UI/UX Designer',
-        'company': 'Designify',
-        'location': 'New York',
-        'description': 'Design user-friendly interfaces for mobile and web platforms.',
-        'requirements': 'Proficiency in Figma, 2+ years experience',
-        'salary': '\$70,000 - \$100,000',
-        'postedBy': 'DesignifyTeam',
-      },
-    },
-    {
-      'id': 3,
-      'title': 'Interview Scheduled',
-      'message': 'Your interview with Innovate is set for Feb 25, 2025, at 10 AM.',
-      'time': '1 day ago',
-      'isRead': false,
-    },
-    {
-      'id': 4,
-      'title': 'Job Offer',
-      'message': 'Congratulations! DataWorks has extended a job offer for Data Analyst.',
-      'time': '2 days ago',
-      'isRead': false,
-    },
-  ];
+  int _selectedIndex = 1;
+  int _unreadCount = 0;
+  List<Map<String, dynamic>> _notifications = [];
+  late Stream<QuerySnapshot> _notificationStream;
+  String? _userId;
 
   @override
   void initState() {
     super.initState();
-    _updateUnreadCount(); // Initialize unread count
-    // TODO: Fetch initial notifications from backend and listen for real-time updates
-    // Example: FirebaseFirestore.instance.collection('notifications').where('userId', isEqualTo: 'currentUser').snapshots().listen((snapshot) {
-    //   setState(() {
-    //     _notifications = snapshot.docs.map((doc) => doc.data()).toList();
-    //     _updateUnreadCount();
-    //   });
-    // });
+    final user = FirebaseAuth.instance.currentUser;
+    _userId = user?.uid;
+    if (_userId != null) {
+      _notificationStream = FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: _userId)
+          .orderBy('createdAt', descending: true)
+          .snapshots();
+      _notificationStream.listen((snapshot) {
+        setState(() {
+          _notifications = snapshot.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            data['id'] = doc.id;
+            return data;
+          }).toList();
+          _updateUnreadCount();
+        });
+      });
+    }
   }
 
   // Update unread notification count
@@ -74,24 +49,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   // Mark a notification as read/unread
-  void _toggleReadStatus(int id) {
-    setState(() {
-      final index = _notifications.indexWhere((n) => n['id'] == id);
-      _notifications[index]['isRead'] = !_notifications[index]['isRead'];
-      _updateUnreadCount();
-      // TODO: Update notification status in backend
-      // Example: await FirebaseFirestore.instance.collection('notifications').doc(id.toString()).update({'isRead': _notifications[index]['isRead']});
-    });
+  void _toggleReadStatus(String id, bool isRead) async {
+    await FirebaseFirestore.instance.collection('notifications').doc(id).update({'isRead': !isRead});
   }
 
   // Delete a notification
-  void _deleteNotification(int id) {
-    setState(() {
-      _notifications.removeWhere((n) => n['id'] == id);
-      _updateUnreadCount();
-      // TODO: Delete notification from backend
-      // Example: await FirebaseFirestore.instance.collection('notifications').doc(id.toString()).delete();
-    });
+  void _deleteNotification(String id) async {
+    await FirebaseFirestore.instance.collection('notifications').doc(id).delete();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Notification deleted')),
     );
@@ -159,18 +123,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   // Simulate adding a new notification (for testing)
-  void _addNewNotification() {
-    setState(() {
-      _notifications.add({
-        'id': _notifications.length + 1,
-        'title': 'New Message',
-        'message': 'You have a new message from an employer.',
-        'time': 'Just now',
-        'isRead': false,
-      });
-      _updateUnreadCount();
+  void _addNewNotification() async {
+    if (_userId == null) return;
+    await FirebaseFirestore.instance.collection('notifications').add({
+      'userId': _userId,
+      'title': 'New Message',
+      'message': 'You have a new message from an employer.',
+      'time': 'Just now',
+      'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
     });
-    // TODO: This would typically be triggered by a backend push event
   }
 
   @override
@@ -244,7 +206,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 2,
-                    color: notification['isRead'] ? Colors.white : Colors.blue[50], // Unread = light blue
+                    color: notification['isRead'] ? Colors.white : Colors.blue[50],
                     child: ListTile(
                       contentPadding: const EdgeInsets.all(16),
                       leading: CircleAvatar(
@@ -268,7 +230,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           Text(notification['message']),
                           const SizedBox(height: 4),
                           Text(
-                            notification['time'],
+                            notification['time'] ?? '',
                             style: const TextStyle(fontSize: 12, color: Colors.grey),
                           ),
                         ],
@@ -278,7 +240,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           notification['isRead'] ? Icons.mark_email_read : Icons.mark_email_unread,
                           color: notification['isRead'] ? Colors.grey : Colors.blue,
                         ),
-                        onPressed: () => _toggleReadStatus(notification['id']),
+                        onPressed: () => _toggleReadStatus(notification['id'], notification['isRead']),
                       ),
                       onTap: () => _viewDetails(notification),
                     ),
@@ -334,7 +296,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  // Helper to choose an icon based on notification type
+  // Helper to choose an icon based on notification title
   IconData _getIconForNotification(String title) {
     switch (title) {
       case 'Application Update':

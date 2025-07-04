@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth
-import 'package:google_sign_in/google_sign_in.dart'; // Google Sign-In
 import 'package:provider/provider.dart'; // For AuthProvider
-import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore
 import '../provider/auth_provider.dart' as jobAppAuthProvider; // Adjust path if needed
 
 class LoginScreen extends StatefulWidget {
@@ -14,7 +12,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   // Controllers for text fields
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   // Form key for validation
@@ -22,44 +20,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Loading states
   bool _isLoadingEmail = false;
-  bool _isLoadingGoogle = false;
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  // Handle username login
+  // Handle email login
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoadingEmail = true);
       try {
         final authProvider = Provider.of<jobAppAuthProvider.AuthProvider>(context, listen: false);
-        String username = _usernameController.text.trim();
-        if (username.isEmpty) {
-          throw jobAppAuthProvider.AuthException('Please enter your username.');
+        String email = _emailController.text.trim();
+        if (email.isEmpty) {
+          throw jobAppAuthProvider.AuthException('Please enter your email.');
         }
-        // Fetch email from Firestore using username
-        final userQuery = await FirebaseFirestore.instance
-            .collection('users')
-            .where('username', isEqualTo: username)
-            .limit(1)
-            .get();
-        if (userQuery.docs.isNotEmpty) {
-          String email = userQuery.docs.first['email'] ?? '';
-          if (email.isEmpty) {
-            throw jobAppAuthProvider.AuthException('No email found for this username.');
-          }
-          await authProvider.signInWithEmailAndPassword(email, _passwordController.text);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Login Successful!')),
-          );
-          Navigator.pushReplacementNamed(context, '/home');
-        } else {
-          throw jobAppAuthProvider.AuthException('No user found with this username.');
-        }
+        await authProvider.signInWithEmailAndPassword(email, _passwordController.text);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Login Successful!')),
+        );
+        Navigator.pushReplacementNamed(context, '/home');
       } on jobAppAuthProvider.AuthException catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message)),
@@ -74,38 +57,41 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // Handle Google sign-in
-  Future<void> _signInWithGoogle() async {
-    setState(() => _isLoadingGoogle = true);
-    try {
-      final authProvider = Provider.of<jobAppAuthProvider.AuthProvider>(context, listen: false);
-      await authProvider.signInWithGoogle();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Google Sign-In Successful!')),
-      );
-      // Wait for provider to update user data before navigating
-      await Future.delayed(const Duration(milliseconds: 300));
-      Navigator.pushReplacementNamed(
-        context,
-        '/home',
-      );
-    } on jobAppAuthProvider.AuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unexpected error: $e')),
-      );
-    } finally {
-      setState(() => _isLoadingGoogle = false);
-    }
-  }
-
-  // Handle Apple sign-in (placeholder)
-  void _signInWithApple() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Apple Sign-In Coming Soon!')),
+  // Forgot Password Dialog
+  void _showForgotPasswordDialog(BuildContext context) {
+    final TextEditingController emailController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: TextField(
+          controller: emailController,
+          decoration: const InputDecoration(labelText: 'Enter your email'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter your email.')));
+                return;
+              }
+              try {
+                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password reset email sent.')));
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+              }
+            },
+            child: const Text('Send Reset Link'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -139,11 +125,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 40),
                 TextFormField(
-                  controller: _usernameController,
-                  decoration: _inputDecoration('Username'),
+                  controller: _emailController,
+                  decoration: _inputDecoration('Email'),
+                  keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your username';
+                      return 'Please enter your email';
+                    }
+                    final trimmed = value.trim();
+                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(trimmed)) {
+                      return 'Please enter a valid email';
                     }
                     return null;
                   },
@@ -186,38 +177,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.grey[400])),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Text('OR', style: TextStyle(color: Colors.grey)),
-                    ),
-                    Expanded(child: Divider(color: Colors.grey[400])),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                GestureDetector(
-                  onTap: _isLoadingGoogle ? null : _signInWithGoogle,
-                  child: _socialButton(
-                    _isLoadingGoogle ? 'Signing in...' : 'Sign in with Google',
-                    Colors.white,
-                    Colors.black87,
-                    Icons.g_mobiledata,
-                    isLoading: _isLoadingGoogle,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                GestureDetector(
-                  onTap: _signInWithApple,
-                  child: _socialButton(
-                    'Sign in with Apple',
-                    Colors.black,
-                    Colors.white,
-                    Icons.apple,
+                // Remove Google and Apple sign-in, show Coming Soon
+                Center(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 10),
+                      Text('Google Sign-In (Coming Soon)', style: TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 10),
+                      Text('Apple Sign-In (Coming Soon)', style: TextStyle(color: Colors.grey)),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 20),
+                // Forgot Password link
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => _showForgotPasswordDialog(context),
+                    child: const Text('Forgot Password?', style: TextStyle(color: Colors.blue)),
+                  ),
+                ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -258,41 +237,6 @@ class _LoginScreenState extends State<LoginScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Colors.blue, width: 2),
-      ),
-    );
-  }
-
-  Widget _socialButton(String text, Color bgColor, Color textColor, IconData icon, {bool isLoading = false}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 5,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          isLoading
-              ? const CircularProgressIndicator(color: Colors.black87)
-              : Icon(icon, color: textColor),
-          const SizedBox(width: 10),
-          Text(
-            text,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
-import '../provider/auth_provider.dart' as jobAppAuthProvider;
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -21,7 +19,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   // Form key for validation
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  bool _isLoadingGoogle = false;
 
   @override
   void dispose() {
@@ -84,39 +81,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
   }
 
-  // Handle Google sign-up
-  Future<void> _signUpWithGoogle() async {
-    setState(() => _isLoadingGoogle = true);
-    try {
-      final authProvider = Provider.of<jobAppAuthProvider.AuthProvider>(context, listen: false);
-      await authProvider.signInWithGoogle();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Google Sign-Up Successful!')),
-      );
-      // Wait for provider to update user data before navigating
-      await Future.delayed(const Duration(milliseconds: 300));
-      Navigator.pushReplacementNamed(context, '/home');
-    } on jobAppAuthProvider.AuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unexpected error: $e')),
-      );
-    } finally {
-      setState(() => _isLoadingGoogle = false);
-    }
-  }
-
-  // Handle Apple sign-in
-  void _signInWithApple() {
-    // TODO: Implement Apple sign-in logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Apple Sign-In Coming Soon!')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -149,7 +113,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
                 const SizedBox(height: 40),
 
-                // Name field
+                // Name field (optional for profile)
                 TextFormField(
                   controller: _nameController,
                   decoration: _inputDecoration('Name'),
@@ -158,7 +122,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Username field
+                // Username field (optional for profile)
                 TextFormField(
                   controller: _usernameController,
                   decoration: _inputDecoration('Username'),
@@ -173,7 +137,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   decoration: _inputDecoration('Email'),
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
-                    if (value!.isEmpty) return 'Please enter your email';
+                    if (value == null || value.isEmpty) return 'Please enter your email';
                     if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                       return 'Please enter a valid email';
                     }
@@ -188,7 +152,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   decoration: _inputDecoration('Password'),
                   obscureText: true,
                   validator: (value) {
-                    if (value!.isEmpty) return 'Please enter a password';
+                    if (value == null || value.isEmpty) return 'Please enter a password';
                     if (value.length < 6) return 'Password must be at least 6 characters';
                     return null;
                   },
@@ -222,44 +186,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               ),
                             ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Divider with "OR"
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.grey[400])),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Text('OR', style: TextStyle(color: Colors.grey)),
-                    ),
-                    Expanded(child: Divider(color: Colors.grey[400])),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Google sign-up button
-                GestureDetector(
-                  onTap: _isLoadingGoogle ? null : _signUpWithGoogle,
-                  child: _socialButton(
-                    _isLoadingGoogle ? 'Signing up...' : 'Google Sign Up',
-                    Colors.white,
-                    Colors.black87,
-                    Icons.g_mobiledata,
-                    isLoading: _isLoadingGoogle,
-                  ),
-                ),
-                const SizedBox(height: 15),
-
-                // Apple sign-up button
-                GestureDetector(
-                  onTap: _signInWithApple,
-                  child: _socialButton(
-                    'Apple Sign Up',
-                    Colors.black,
-                    Colors.white,
-                    Icons.apple,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -306,42 +232,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Colors.blue, width: 2),
-      ),
-    );
-  }
-
-  // Reusable social button widget
-  Widget _socialButton(String text, Color bgColor, Color textColor, IconData icon, {bool isLoading = false}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 5,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: textColor),
-          const SizedBox(width: 10),
-          isLoading
-              ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-              : Text(
-                  text,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-        ],
       ),
     );
   }
